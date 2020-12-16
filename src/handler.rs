@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use http::{Request, Response, Method};
 use http_bytes::{parse_request_header_easy};
 use std::sync::Mutex;
-use crate::{cache::HTTPCache, strikeset::HTTPStrikeSet};
+use super::{cache::HTTPCache, strikeset::HTTPStrikeSet};
 
 type HandlerFn = fn(&mut HTTPRequestHandler, req: Request<()>, stream: TcpStream);
 
@@ -43,6 +43,8 @@ impl HTTPRequestHandler {
     }
 
     fn handle_get(&mut self, req: Request<()>, stream: TcpStream) {
+        let ip_addr = stream.peer_addr().unwrap();
+        let host = req.uri().unwrap().host();
 
     }
 

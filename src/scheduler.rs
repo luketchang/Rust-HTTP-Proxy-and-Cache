@@ -2,9 +2,9 @@ use threadpool::ThreadPool;
 use std::net::{ TcpStream };
 use std::sync::{Arc, Mutex};
 
-use crate::handler::{HTTPRequestHandler};
-use crate::strikeset::{HTTPStrikeSet};
-use crate::cache::{HTTPCache};
+use super::handler::{HTTPRequestHandler};
+use super::strikeset::{HTTPStrikeSet};
+use super::cache::{HTTPCache};
 
 pub struct HTTPScheduler {
     pool: ThreadPool,

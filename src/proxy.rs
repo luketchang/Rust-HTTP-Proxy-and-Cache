@@ -1,6 +1,6 @@
 use std::net::{TcpListener};
 use std::sync::{Arc};
-use crate::scheduler::{HTTPScheduler};
+use super::scheduler::HTTPScheduler;
 
 pub struct HTTPProxy {
     port_number: i64,
