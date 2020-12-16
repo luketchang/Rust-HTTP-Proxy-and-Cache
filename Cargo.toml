@@ -1,0 +1,12 @@
+[package]
+name = "http-proxy"
+version = "0.1.0"
+authors = ["Luke Tchang <ltchang@stanford.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+threadpool = "1.8.1"
+http = "0.1.0"
+http-bytes = "0.1.0"
