@@ -1,17 +1,16 @@
 use std::net::{TcpListener};
-use std::sync::{Arc};
-use super::scheduler::HTTPScheduler;
+use super::handler::HTTPRequestHandler;
 
 pub struct HTTPProxy {
     port_number: i64,
-    scheduler: HTTPScheduler,
+    handler: HTTPRequestHandler,
 }
 
 impl HTTPProxy {
     pub fn new(port_number: i64) -> Self {
         Self {
             port_number,
-            scheduler: HTTPScheduler::new(),
+            handler: HTTPRequestHandler::new(),
         }
     }
 
@@ -22,7 +21,7 @@ impl HTTPProxy {
 
         loop {
             match listener.accept() {
-                Ok((mut stream, _)) => { self.scheduler.schedule_req(stream); },
+                Ok((mut client_conn, _)) => { &self.handler.service_req(client_conn); },
                 Err(e) => println!("Failed to establish connection: {}", e),
             }
         };

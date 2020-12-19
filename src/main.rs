@@ -1,4 +1,4 @@
 fn main() {
-    let proxy = proxy::HTTPProxy::new(8000);
+    let proxy = http_proxy::proxy::HTTPProxy::new(8000);
     proxy.run();
 }
