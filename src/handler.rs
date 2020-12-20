@@ -21,12 +21,13 @@ impl HTTPRequestHandler {
         let mut map: HashMap<Method, HandlerFn> = HashMap::new();
         map.insert(Method::GET, HTTPRequestHandler::handle_get);
         map.insert(Method::POST, HTTPRequestHandler::handle_post);
+        map.insert(Method::HEAD, HTTPRequestHandler::handle_head);
 
         Self {
             pool: ThreadPool::new(64),
             handlers: Arc::new(map),
             strikeset: Arc::new(HTTPStrikeSet{}),
-            cache: Arc::new(Mutex::new(HTTPCache::new("placeholder"))),
+            cache: Arc::new(Mutex::new(HTTPCache::new("/cache"))),
         }
     }
 
@@ -53,10 +54,23 @@ impl HTTPRequestHandler {
         let mut host_conn = TcpStream::connect(format!("{}:{}", host_ip[0], "80")).unwrap();
 
         let res = Self::forward_request_and_return_response(&req, &mut host_conn);
+        println!("{:?}", res);
         response::send_response(client_conn, &res);
     }
 
     fn handle_post(mut req: Request<Vec<u8>>, data: ProxyData, client_conn: &mut TcpStream) {
+        let client_ip = client_conn.peer_addr().unwrap().ip().to_string();
+        request::extend_header_value(&mut req, "x-forwarded-for", &client_ip);
+
+        let hostname = req.uri().host().unwrap();
+        let host_ip = dns_lookup::lookup_host(hostname).unwrap();
+        let mut host_conn = TcpStream::connect(format!("{}:{}", host_ip[0], "80")).unwrap();
+
+        let res = Self::forward_request_and_return_response(&req, &mut host_conn);
+        response::send_response(client_conn, &res);
+    }
+
+    fn handle_head(mut req: Request<Vec<u8>>, data: ProxyData, client_conn: &mut TcpStream) {
         let client_ip = client_conn.peer_addr().unwrap().ip().to_string();
         request::extend_header_value(&mut req, "x-forwarded-for", &client_ip);
 
@@ -81,7 +95,7 @@ impl HTTPRequestHandler {
                 return response::make_http_error(http::StatusCode::BAD_GATEWAY);
             }
         };
-        return host_res;
+        host_res
     }
 
 }

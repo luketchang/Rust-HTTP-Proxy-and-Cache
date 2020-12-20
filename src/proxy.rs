@@ -21,7 +21,7 @@ impl HTTPProxy {
 
         loop {
             match listener.accept() {
-                Ok((mut client_conn, _)) => { &self.handler.service_req(client_conn); },
+                Ok((client_conn, _)) => { &self.handler.service_req(client_conn); },
                 Err(e) => println!("Failed to establish connection: {}", e),
             }
         };
