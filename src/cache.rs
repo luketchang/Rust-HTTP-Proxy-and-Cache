@@ -1,34 +1,113 @@
-use std::{path::{Path}, sync::{Mutex, Arc}};
+use std::{path::{Path}, sync::{Mutex, Arc}, fs::{File, read}};
+use std::io::prelude::*;
 use http::{Request, Response};
-use crate::request::Error;
-use super::{utils};
+use httparse;
+use super::{utils, response};
 
 
 pub struct HTTPCache {
     dir_path: String,
-    file_locks: Vec<Arc<Mutex<Option<String>>>>,
+    file_locks: Vec<Arc<Mutex<()>>>,
 }
 
 impl HTTPCache {
-    pub fn new(file_name: &str) -> Self {
+    pub fn new(dir_path: &str) -> Self {
         Self {
-            dir_path: file_name.to_string(),
-            file_locks: vec![Arc::new(Mutex::new(None)); 997]
+            dir_path: dir_path.to_string(),
+            file_locks: vec![Arc::new(Mutex::new(())); 997]
         }
     }
 
     pub fn contains_entry(&self, req: &Request<Vec<u8>>) -> bool {
-        let hashcode = utils::get_hashcode(req);
-        let path = format!("{}/{}", self.dir_path, hashcode);
+        let path = self.get_filepath_from_request(req);
         Path::new(&path).exists()
     }
 
-    pub fn get_cached_response(&self, req: &Request<Vec<u8>>) -> Result<Response<Vec<u8>>, std::io::Error> {
-        
+    pub fn get_cached_response(&self, req: &Request<Vec<u8>>) -> Option<Response<Vec<u8>>> {
+        if !Self::contains_entry(self, &req) {
+            return None
+        }
+
+        let filepath = self.get_filepath_from_request(req);
+        if let Ok(res_bytes) = read(&filepath) {
+            if let Ok(Some((res, _))) = response::parse_response(&res_bytes) {
+                return Some(res);
+            }
+            log::error!("Failed to parse response from cache file {}", &filepath);
+            return None
+        }
+        log::error!("Failed to read response from cache file {}", &filepath);
+        return None
     }
 
     pub fn add_entry(&self, req: &Request<Vec<u8>>, res: &Response<Vec<u8>>) {
-        let hashcode = utils::get_hashcode(req);
-        
+        let filepath = Self::get_filepath_from_request(&self, req);
+        let res_bytes = utils::response_to_bytes(res);
+
+        if let Ok(mut file_buf) = File::create(&filepath) {
+            match file_buf.write_all(&res_bytes) {
+                Ok(_) => log::info!("Wrote file {} to cache.", &filepath),
+                Err(e) => log::error!("Failed to write response to cache file: {}", e)
+            }
+        } else {
+            log::error!("Failed to create new cache file!");
+        }
     }
+
+    fn get_filepath_from_request(&self, req: &Request<Vec<u8>>) -> String {
+        let hashcode = utils::get_hashcode(req);
+        format!("{}/{}", self.dir_path, hashcode)
+    }
+}
+
+#[test]
+fn adds_cache_file() {
+    use std::fs;
+    use http;
+
+    let cache = HTTPCache::new(".");
+
+    let req_builder = Request::builder()
+        .uri("https://www.rust-lang.org/")
+        .header("User-Agent", "my-awesome-agent/1.0");
+    let req_vec: Vec<u8> = Vec::new();
+    let request = req_builder.body(req_vec).unwrap();
+
+    let res_builder = Response::builder()
+        .header("Foo", "Bar")
+        .status(http::StatusCode::OK);
+    let res_vec: Vec<u8> = Vec::new();
+    let response = res_builder.body(res_vec).unwrap();
+
+    cache.add_entry(&request, &response);
+    let expected_filepath = &cache.get_filepath_from_request(&request);
+    assert!(Path::new(&expected_filepath).exists());
+    fs::remove_file(expected_filepath);
+}
+
+#[test]
+fn retrieves_cache_file() {
+    use std::fs;
+    use http;
+    env_logger::init();
+
+    let cache = HTTPCache::new(".");
+
+    let req_builder = Request::builder()
+        .uri("https://www.rust-lang.org/")
+        .header("User-Agent", "my-awesome-agent/1.0");
+    let req_vec: Vec<u8> = Vec::new();
+    let request = req_builder.body(req_vec).unwrap();
+
+    let res_builder = Response::builder()
+        .header("Foo", "Bar")
+        .status(http::StatusCode::OK);
+    let res_vec: Vec<u8> = Vec::new();
+    let response = res_builder.body(res_vec).unwrap();
+
+    cache.add_entry(&request, &response);
+    
+    let retrieved_response = cache.get_cached_response(&request);
+    println!("{:?}", retrieved_response);
+    println!("{:?}", Some(response));
 }

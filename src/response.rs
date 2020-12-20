@@ -52,7 +52,7 @@ fn get_content_length(response: &http::Response<Vec<u8>>) -> Result<Option<usize
 ///   Err(Error)
 ///
 /// You won't need to touch this function.
-fn parse_response(buffer: &[u8]) -> Result<Option<(http::Response<Vec<u8>>, usize)>, Error> {
+pub fn parse_response(buffer: &[u8]) -> Result<Option<(http::Response<Vec<u8>>, usize)>, Error> {
     let mut headers = [httparse::EMPTY_HEADER; MAX_NUM_HEADERS];
     let mut resp = httparse::Response::new(&mut headers);
     let res = resp
