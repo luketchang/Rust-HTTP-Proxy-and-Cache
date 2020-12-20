@@ -1,10 +1,11 @@
-use std::{collections::HashMap, path::{PathBuf}};
+use std::{collections::HashMap};
 use threadpool::ThreadPool;
 use std::net::TcpStream;
 use http::{Request, Response, Method};
 use std::sync::{Mutex, Arc};
 use::dns_lookup;
-use super::{cache::HTTPCache, strikeset::HTTPStrikeSet, request, response};
+use super::{cache::HTTPCache, strikeset::HTTPStrikeSet};
+use super::http::{request, response};
 
 type ProxyData = (Arc<Mutex<HTTPCache>>, Arc<HTTPStrikeSet>);
 type HandlerFn = fn(req: Request<Vec<u8>>, data: ProxyData, conn: &mut TcpStream);
@@ -45,6 +46,8 @@ impl HTTPRequestHandler {
         });
     }
 
+    //TODO: have handlers check strikeset
+    //TODO: incorporate cache into GET request handler
     fn handle_get(mut req: Request<Vec<u8>>, data: ProxyData, client_conn: &mut TcpStream) {
         let client_ip = client_conn.peer_addr().unwrap().ip().to_string();
         request::extend_header_value(&mut req, "x-forwarded-for", &client_ip);
@@ -54,7 +57,6 @@ impl HTTPRequestHandler {
         let mut host_conn = TcpStream::connect(format!("{}:{}", host_ip[0], "80")).unwrap();
 
         let res = Self::forward_request_and_return_response(&req, &mut host_conn);
-        println!("{:?}", res);
         response::send_response(client_conn, &res);
     }
 

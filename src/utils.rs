@@ -2,8 +2,6 @@ use http::{Request, Response};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use crate::request;
-
 pub fn response_to_bytes(req: &Response<Vec<u8>>) -> Vec<u8> {
     let serialized_req = format!("{:?}", req);
     serialized_req.into_bytes()

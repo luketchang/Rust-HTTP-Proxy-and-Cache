@@ -2,7 +2,8 @@ use std::{path::{Path}, sync::{Mutex, Arc}, fs::{File, read}};
 use std::io::prelude::*;
 use http::{Request, Response};
 use httparse;
-use super::{utils, response};
+use super::utils;
+use super::http::{response};
 
 
 pub struct HTTPCache {
@@ -28,6 +29,7 @@ impl HTTPCache {
             return None
         }
 
+        //TODO: fix MalformedResponse Error
         let filepath = self.get_filepath_from_request(req);
         if let Ok(res_bytes) = read(&filepath) {
             if let Ok(Some((res, _))) = response::parse_response(&res_bytes) {
@@ -60,6 +62,7 @@ impl HTTPCache {
     }
 }
 
+//TODO: create test mod to share imports and env logger
 #[test]
 fn adds_cache_file() {
     use std::fs;
@@ -82,7 +85,6 @@ fn adds_cache_file() {
     cache.add_entry(&request, &response);
     let expected_filepath = &cache.get_filepath_from_request(&request);
     assert!(Path::new(&expected_filepath).exists());
-    fs::remove_file(expected_filepath);
 }
 
 #[test]
@@ -110,4 +112,5 @@ fn retrieves_cache_file() {
     let retrieved_response = cache.get_cached_response(&request);
     println!("{:?}", retrieved_response);
     println!("{:?}", Some(response));
+    //TODO: assert retrieved response == built response
 }
