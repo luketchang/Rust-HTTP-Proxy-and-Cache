@@ -1,8 +1,8 @@
-use std::{path::{Path}, sync::{Mutex, Arc}, fs::{File, read}};
+use std::{fs::{File, copy, read, create_dir_all}, path::{Path}, sync::{Mutex, Arc}};
 use std::io::prelude::*;
 use http::{Request, Response};
 use httparse;
-use super::utils;
+use super::{utils, handler};
 use super::http::{response};
 
 
@@ -13,6 +13,8 @@ pub struct HTTPCache {
 
 impl HTTPCache {
     pub fn new(dir_path: &str) -> Self {
+        create_dir_all(dir_path).unwrap();
+
         Self {
             dir_path: dir_path.to_string(),
             file_locks: vec![Arc::new(Mutex::new(())); 997]
@@ -29,7 +31,6 @@ impl HTTPCache {
             return None
         }
 
-        //TODO: fix MalformedResponse Error
         let filepath = self.get_filepath_from_request(req);
         if let Ok(res_bytes) = read(&filepath) {
             if let Ok(Some((res, _))) = response::parse_response(&res_bytes) {
@@ -65,7 +66,6 @@ impl HTTPCache {
 //TODO: create test mod to share imports and env logger
 #[test]
 fn adds_cache_file() {
-    use std::fs;
     use http;
 
     let cache = HTTPCache::new(".");
@@ -89,8 +89,6 @@ fn adds_cache_file() {
 
 #[test]
 fn retrieves_cache_file() {
-    use std::fs;
-    use http;
     env_logger::init();
 
     let cache = HTTPCache::new(".");

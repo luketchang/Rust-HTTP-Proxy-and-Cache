@@ -7,6 +7,7 @@
 - *courtesy of reberhardt7 for custom request and response code
 
 ### Todo
-- Finish cache implementation (specifically storing requests in cache files in serializable/deserializable way)
+- **Figure out how to serialize/deserialize response objects for cache*
+- Finish cache implementation
 - Strikeset implementation
-- More comprehensive and better organized testing
+- Add more comprehensive and better organized testing

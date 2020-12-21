@@ -28,7 +28,7 @@ impl HTTPRequestHandler {
             pool: ThreadPool::new(64),
             handlers: Arc::new(map),
             strikeset: Arc::new(HTTPStrikeSet{}),
-            cache: Arc::new(Mutex::new(HTTPCache::new("/cache"))),
+            cache: Arc::new(Mutex::new(HTTPCache::new("./cache"))),
         }
     }
 
@@ -46,8 +46,6 @@ impl HTTPRequestHandler {
         });
     }
 
-    //TODO: have handlers check strikeset
-    //TODO: incorporate cache into GET request handler
     fn handle_get(mut req: Request<Vec<u8>>, data: ProxyData, client_conn: &mut TcpStream) {
         let client_ip = client_conn.peer_addr().unwrap().ip().to_string();
         request::extend_header_value(&mut req, "x-forwarded-for", &client_ip);
@@ -56,7 +54,17 @@ impl HTTPRequestHandler {
         let host_ip = dns_lookup::lookup_host(hostname).unwrap();
         let mut host_conn = TcpStream::connect(format!("{}:{}", host_ip[0], "80")).unwrap();
 
-        let res = Self::forward_request_and_return_response(&req, &mut host_conn);
+        let res: Response<Vec<u8>>;
+        let cache = data.0.lock().unwrap();
+        if cache.contains_entry(&req) {
+            match cache.get_cached_response(&req) {
+                Some(cached_res) => res = cached_res,
+                None => res = Self::forward_request_and_return_response(&req, &mut host_conn)
+            }
+        } else {
+            res = Self::forward_request_and_return_response(&req, &mut host_conn);
+            cache.add_entry(&req, &res);
+        }
         response::send_response(client_conn, &res);
     }
 
@@ -84,7 +92,7 @@ impl HTTPRequestHandler {
         response::send_response(client_conn, &res);
     }
 
-    fn forward_request_and_return_response(req: &Request<Vec<u8>>, host_conn: &mut TcpStream) -> Response<Vec<u8>> {
+    pub fn forward_request_and_return_response(req: &Request<Vec<u8>>, host_conn: &mut TcpStream) -> Response<Vec<u8>> {
         if let Err(err) = request::write_to_stream(&req, host_conn) {
             log::error!("Failed to send request to host {:?}: {:?}", host_conn.peer_addr().unwrap().ip(), err);
             return response::make_http_error(http::StatusCode::BAD_GATEWAY);
@@ -99,5 +107,4 @@ impl HTTPRequestHandler {
         };
         host_res
     }
-
 }
